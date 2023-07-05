@@ -1,0 +1,12 @@
+python-dotenv
+pyarrow
+schedule
+gridstatusio
+teslapy
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+googlemaps
+dash_bootstrap_components
+dash
+gunicorn
