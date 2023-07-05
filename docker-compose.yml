@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intelligent-charge-scheduler:latest
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    ports:
+      - 8081:8081
+    volumes:
+      - ./credentials.json:/app/credentials.json
+      - ics-volume:/app
+    restart: always
+    command: ["python3", "-u", "scheduler.py", "-i", "14"]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intelligent-charge-scheduler:latest
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    volumes:
+      - ics-volume:/app
+    restart: always
+    command: ["gunicorn", "-b", "0.0.0.0:8000", "app:server"]
+
+volumes:
+  ics-volume:
