@@ -162,8 +162,9 @@ cython_debug/
 # MacOS
 *.DS_Store
 
-# Config files
+# Intelligent Charge Scheduler
 cache.json
 credentials.json
 token.json
-**.ipynb
+*.ipynb
+*.parquet
