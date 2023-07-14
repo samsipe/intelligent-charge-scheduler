@@ -10,10 +10,11 @@ A grid aware, calendar connected charge scheduler for Tesla vehicles
     - [Docker Usage](#docker-usage)
     - [Basic Logic:](#basic-logic)
     - [Web Frontend](#web-frontend)
+    - [GitHub CopilotX](#github-copilotx)
 
 ### Overview
 
-This is an MVP for a charge optimizer that will check a google calendar, the status of the electric grid, and the state of charge of the vehicle to determine when to best charge a Tesla. It is designed to run on a schedule, and can run locally, in docker compose, or deployed to the cloud. It will also only wake the vehicle when it is plugged in, so it won't drain the battery.
+This is an MVP for a charge optimizer that checks a google calendar for events, looks at the status of load on the electric grid, and the state of charge of a vehicle to determine when to best charge its batteries. It runs on a schedule, and can run locally, in docker using docker compose, or deployed to the cloud. It also only wakes the vehicle when it is plugged in, so it won't drain the battery.
 
 ### Limitations:
 
@@ -36,7 +37,8 @@ TESLA_ACCOUNT_EMAIL=you@email.com
 GRID_STATUS_API_KEY=<key_goes_here>
 GRID_ISO=PJM
 GOOGLE_MAPS_API_KEY=<key_goes_here>
-TESLA_HOME_ADDRESS="28047 County Street, Nowhere, OK 73038"
+TESLA_HOME_ADDRESS="28047 County Street Nowhere OK 73038"
+TIME_ZONE=America/New_York
 ```
 
 ### Basic Usage
@@ -67,7 +69,7 @@ If you run the above script before using docker, you will already have the requi
 - Running this in docker using docker compose is better for a longer running process:
 
 ```
-docker-compose up --build
+docker compose up --build
 ```
 
 - To authorize the Tesla app, follow the link and copy the url after the "Page Not Found" shows up, then in a new terminal window run:
@@ -81,7 +83,7 @@ docker attach intelligent-charge-scheduler-scheduler-1
 - When you're done you can use the following to remove everything:
 
 ```
-docker-compose down --rmi all -v --remove-orphans
+docker compose down --rmi all -v --remove-orphans
 ```
 
 ### Basic Logic:
@@ -110,3 +112,7 @@ There is also a [web frontend](app.py) that can be used to view the current stat
 ```
 python3 app.py
 ```
+
+### GitHub CopilotX
+
+I initially started this project as a way to test out the features of [GitHub's CopilotX](https://github.com/features/preview/copilot-x). It was able to generate a lot of the boilerplate code, write docstrings, and help with errors but it was not able to generate the logic for the scheduler. It also offers up a lot of answers that are wrong, or just confusing. I'm sure it will get better over time, but it's not quite there yet. (It wrote that last sentence, not me)
