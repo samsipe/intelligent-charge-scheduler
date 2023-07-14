@@ -1,12 +1,13 @@
 import datetime
-from dash import Dash, html, dcc, Input, Output
+import json
+from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 
-import scheduler
+from scheduler import get_grid_status, plot_grid_status, google_cloud_storage_download
 
 app = Dash(
     __name__,
-    title="Intelligent Charging Scheduler",
+    title="Intelligent Charge Scheduler",
     external_stylesheets=[dbc.themes.ZEPHYR],
     meta_tags=[
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
@@ -15,38 +16,153 @@ app = Dash(
 )
 server = app.server
 
+LOGO = "https://www.gitbook.com/cdn-cgi/image/width=30,dpr=2,height=30,fit=contain,format=auto/https%3A%2F%2F1424805687-files.gitbook.io%2F~%2Ffiles%2Fv0%2Fb%2Fgitbook-legacy-files%2Fo%2Fspaces%252F-LNfdtt4GjEZFGIkSBlE%252Favatar.png%3Fgeneration%3D1538330785479526%26alt%3Dmedia"
 
-@app.callback(
-    Output("summary", "children"), Input("interval-component", "n_intervals")
+nav = dbc.Nav(
+    [
+        dbc.NavItem(
+            dbc.NavLink(
+                "GitHub",
+                href="https://github.com/samsipe/intelligent-charge-scheduler",
+                target="blank",
+                id="git_hub",
+                style={"textAlign": "center"},
+            )
+        ),
+    ],
+    pills=True,
+    className="g-0 ms-auto flex-nowrap mt-3 mt-md-0",
 )
-def scheduler_data(n):
-    tesla = scheduler.auth_tesla()
 
-    _, summary = scheduler.get_vehicle_status(tesla)
-    tesla.close()
-    return f"{summary}"
+navbar = dbc.Navbar(
+    dbc.Container(
+        [
+            html.A(
+                # Use row and col to control vertical alignment of logo / brand
+                dbc.Row(
+                    [
+                        dbc.Col(html.Img(src=LOGO, height="30px")),
+                        dbc.Col(
+                            dbc.NavbarBrand(
+                                "Intelligent Charge Scheduler",
+                                className="ms-2",
+                                style={"font-size": "120%"},
+                            )
+                        ),
+                    ],
+                    align="center",
+                    className="g-0",
+                ),
+                href="#",
+                style={"textDecoration": "none"},
+            ),
+            dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
+            dbc.Collapse(
+                nav,
+                id="navbar-collapse",
+                is_open=False,
+                navbar=True,
+            ),
+        ]
+    ),
+    color="dark",
+    dark=True,
+)
+
+
+# add callback for toggling the collapse on small screens
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    [Input("navbar-toggler", "n_clicks")],
+    [State("navbar-collapse", "is_open")],
+)
+def toggle_navbar_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 
 @app.callback(
-    Output("forecast_load", "figure"), Input("interval-component", "n_intervals")
+    Output("forecast_load", "figure"),
+    Output("summary", "children"),
+    Output("charge_limit", "children"),
+    Output("charge_current", "children"),
+    Output("charging_state", "children"),
+    Input("interval-component", "n_intervals"),
 )
 def forecast_load(n):
-    df = scheduler.get_grid_status()
-    fig = scheduler.plot_grid_status(df)
-    return fig
+    google_cloud_storage_download()
+    df = get_grid_status()
+    with open("vehicle.json", "r") as vehicle_file:
+        vehicle = json.load(vehicle_file)
+    fig = plot_grid_status(df, vehicle=vehicle)
+    return (
+        fig,
+        vehicle["summary"],
+        f"Charge Limit: {vehicle['charge_state']['charge_limit_soc']}%",
+        f"Charge Current: {vehicle['charge_state']['charge_current_request']}A/{vehicle['charge_state']['charge_current_request_max']}A",
+        f"Charger State: {vehicle['charge_state']['charging_state']}",
+    )
 
+
+dashboard = dbc.Container(
+    [
+        html.Div(
+            id="graph_wrapper",
+            children=[
+                html.H5(
+                    "Optimal Tesla Charging using Load Forecast",
+                    className="mt-5",
+                    style={"textAlign": "center"},
+                ),
+                dcc.Graph(
+                    id="forecast_load",
+                    style={"height": "40vh"},
+                ),
+                html.Div(
+                    [
+                        dbc.Row(
+                            dbc.Col(
+                                html.H6(id="summary", style={"textAlign": "center"})
+                            )
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    html.H6(
+                                        id="charge_limit", style={"textAlign": "center"}
+                                    )
+                                ),
+                                dbc.Col(
+                                    html.H6(
+                                        id="charge_current",
+                                        style={"textAlign": "center"},
+                                    )
+                                ),
+                                dbc.Col(
+                                    html.H6(
+                                        id="charging_state",
+                                        style={"textAlign": "center"},
+                                    )
+                                ),
+                            ]
+                        ),
+                    ]
+                ),
+            ],
+        ),
+    ]
+)
 
 location = dcc.Location(id="url", refresh=False)
 
 footer = dbc.Navbar(
     dbc.Container(
         [
-            html.Div(
-                f"© {datetime.datetime.now().year} Intelligent Charging Scheduler"
-            ),
+            html.Div(f"© {datetime.datetime.now().year} Intelligent Charge Scheduler"),
             html.Div(
                 [
-                    "Made with ⚡️ by ",
+                    "Made with 🔋 by ",
                     html.A(
                         "Sam Sipe",
                         href="https://samsipe.com/",
@@ -63,18 +179,15 @@ footer = dbc.Navbar(
 
 counter = dcc.Interval(
     id="interval-component",
-    interval=900000,  # update every 15 minutes
+    interval=15000,  # update every 15 seconds
     n_intervals=0,
 )
 
 app.layout = html.Div(
     [
         location,
-        html.H1(
-            children="Intelligent Charging Scheduler", style={"textAlign": "center"}
-        ),
-        dcc.Graph(id="forecast_load", style={"height": "80vh"}),
-        html.H4(id="summary", style={"textAlign": "center"}),
+        navbar,
+        html.Div(dashboard, className="pb-3 mb-5"),
         footer,
         counter,
     ]
