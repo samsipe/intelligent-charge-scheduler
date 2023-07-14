@@ -16,21 +16,24 @@ services:
       - ./credentials.json:/app/credentials.json
       - ics-volume:/app
     restart: always
-    command: ["python3", "-u", "scheduler.py", "-i", "14"]
+    command: python3 scheduler.py -i 14
 
   app:
+    depends_on:
+      - scheduler
     build:
       context: .
       dockerfile: Dockerfile
     image: intelligent-charge-scheduler:latest
     env_file:
       - .env
+    environment:
+      - PORT=8080
     ports:
-      - 8000:8000
+      - 8080:8080
     volumes:
       - ics-volume:/app
     restart: always
-    command: ["gunicorn", "-b", "0.0.0.0:8000", "app:server"]
 
 volumes:
   ics-volume:

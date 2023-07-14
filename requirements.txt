@@ -6,7 +6,7 @@ teslapy
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
+google-cloud-storage
 googlemaps
 dash_bootstrap_components
 dash
-gunicorn
