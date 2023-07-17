@@ -11,6 +11,7 @@ A grid aware, calendar connected charge scheduler for Tesla vehicles
     - [Basic Logic:](#basic-logic)
     - [Web Frontend](#web-frontend)
     - [GitHub CopilotX](#github-copilotx)
+    - [Disclaimer:](#disclaimer)
 
 ### Overview
 
@@ -125,3 +126,7 @@ python3 app.py
 ### GitHub CopilotX
 
 I initially started this project as a way to test out the features of [GitHub's CopilotX](https://github.com/features/preview/copilot-x). It was able to generate a lot of the boilerplate code, write docstrings, and help with errors but it was not able to generate the logic for the scheduler. It also offers up a lot of answers that are wrong, or just confusing. I'm sure it will get better over time, but it's not quite there yet. (It wrote that last sentence, not me)
+
+### Disclaimer:
+
+The creator of this application is not responsible for any issues that may arise from use of this app with Tesla vehicles. Use of this app with a Tesla vehicle is at the sole risk of the vehicle owner/operator. By using this app you accept all risks associated with modifying the behavior of a Tesla vehicle via a third-party application. The app creator provides no warranty that the app will function properly, nor do they accept any liability for any outcomes arising from use of the app with a Tesla vehicle. You assume full responsibility for the results of using this application with your Tesla vehicle.
