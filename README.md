@@ -16,6 +16,10 @@ A grid aware, calendar connected charge scheduler for Tesla vehicles
 
 This is an MVP for a charge optimizer that checks a google calendar for events, looks at the status of load on the electric grid, and the state of charge of a vehicle to determine when to best charge its batteries. It runs on a schedule, and can run locally, in docker using docker compose, or deployed to the cloud. It also only wakes the vehicle when it is plugged in, so it won't drain the battery.
 
+The Tesla app already allows users with Time of Use (TOU) rates to set **off-peak charge** end time. This allows the vehicle to charge at the lowest cost possible, and be ready to go when needed. This app takes that a step further by using a calendar to determine when the vehicle will be needed, and the status of the electric grid to determine when and ***how fast*** it should charge. It will also increase the charge limit if the vehicle is needed for a longer trip that is on your calendar.
+
+To use this application you will need to enable **off-peak charge** in the Tesla mobile app. This app will then change the **charge limit, charge rate, departure time, and off-peak end time** accordingly. It will not change other schedule settings like preconditioning, or weekday/weekend settings.
+
 ### Limitations:
 
 - Single location (where the car is usually charged)
@@ -33,7 +37,7 @@ To get this to work in your own environment, please follow a few setup steps:
 - Use the above to make a new `.env` file with the following:
 
 ```
-TESLA_ACCOUNT_EMAIL=you@email.com
+TESLA_ACCOUNT_EMAIL=your@email.com
 GRID_STATUS_API_KEY=<key_goes_here>
 GRID_ISO=PJM
 GOOGLE_MAPS_API_KEY=<key_goes_here>
@@ -62,9 +66,16 @@ python3 scheduler.py -v -i 14
 
 ### Docker Usage
 
-If you run the above script before using docker, you will already have the required `token.json` and `cache.json` files and will not need to re-authorize your Tesla or google calendar.
+If you run the above script before using docker, you will already have the required `token.json` and `cache.json` files and will not need to re-authorize your Tesla or google calendar, if you comment out the following lines in the [.dockerignore](.dockerignore)
 
-> ⚠️ This means you shouldn't push docker images you build to a public repo, as they will contain short-lived secrets. To change this uncomment the last two lines of the [.dockerignore](.dockerignore) file.
+```
+# Intelligent Charge Scheduler
+*.json
+*.ipynb
+*.parquet
+```
+
+> ⚠️ This means you shouldn't push docker images you build this way to a public repo, as they will contain short-lived secrets.
 
 - Running this in docker using docker compose is better for a longer running process:
 
@@ -88,22 +99,20 @@ docker compose down --rmi all -v --remove-orphans
 
 ### Basic Logic:
 
-- Run the python script on a schedule
-- Set Max charging amps hourly based on Grid Status
-- If the the charge state is below 20% and plugged in
-- Stop charging once the charge state is above 20% and wait for scheduler to start
+- Run the python script on a schedule (every 15 minutes)
+- If the charge state is below 20% and the vehicle is plugged in
+  - Charge at full power
+  - Stop charging once the charge state is above 20% and wait for scheduler to start
 - If the car's charge limit is set above 95% start charging at full power
 - Set `SCHEDULED_DEPARTURE` based on the following (requires wake)
   - Only run if `off_peak_charging_enabled == True` (prevents adding new locations)
   - Car must be set to Off-Peak/ DepartBy Charging
   - Car must not be less than 20%
 - Set `CHANGE_CHARGE_LIMIT` based on how far away the next calendar event is (requires wake)
+  - Upcoming trips longer than 3 hours and 120 miles will get a charge limit of 94%
   - Only increase limit above 80% if within a few hours of departure (work in progress)
 - Set `CHARGING_AMPS` based on forecast grid load over the next week (requires wake)
-  - 25% above upper standard deviation
-  - 50% above mean
-  - 75% below mean
-  - 100% below lower standard deviation
+
 
 ### Web Frontend
 
