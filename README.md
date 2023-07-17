@@ -116,7 +116,7 @@ docker compose down --rmi all -v --remove-orphans
 
 ### Web Frontend
 
-There is also a [web frontend](app.py) that can be used to view the current state of the scheduler, built using [Plotly Dash](https://dash.plotly.com) It can also be run locally, in docker compose, or deployed to the cloud. It shares authentication and data with the scheduler, so it will only work if the scheduler has run recently.
+There is also a [web frontend](app.py) that can be used to view the current state of the scheduler, built using [Plotly Dash](https://dash.plotly.com). It can also be run locally, in docker compose, or deployed to the cloud. It shares authentication and data with the scheduler, so it will only work if the scheduler has run recently.
 
 ```
 python3 app.py

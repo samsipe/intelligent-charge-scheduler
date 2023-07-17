@@ -5,7 +5,7 @@ the vehicle charge accordingly.
 
 Author: Sam Sipe
 """
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 from dotenv import load_dotenv
 import argparse
@@ -687,10 +687,10 @@ def calc_schedule_limits(
             valid_events.append(event)
 
     # drives longer than 120 miles and longer than 3 hours
-    if longest_distance >= 120 and longest_time >= 180:
+    if longest_distance >= 120 or longest_time >= 180:
         # higher than this will charge now at full rate
         vehicle["charge_state"]["charge_limit_soc"] = 94
-    elif longest_distance > 0 and longest_time > 0:
+    elif longest_distance > 0:
         vehicle["charge_state"]["charge_limit_soc"] = int(
             longest_distance * (95 - 75) / 120 + 75
         )
