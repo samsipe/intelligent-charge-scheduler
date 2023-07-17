@@ -145,8 +145,6 @@ Dockerfile
 docker-compose.yml
 
 # Intelligent Charge Scheduler
+*.json
 *.ipynb
-# *.parquet
-credentials.json
-# cache.json
-# token.json
+*.parquet
