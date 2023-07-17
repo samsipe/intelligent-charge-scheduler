@@ -16,8 +16,6 @@ app = Dash(
 )
 server = app.server
 
-LOGO = "https://www.gitbook.com/cdn-cgi/image/width=30,dpr=2,height=30,fit=contain,format=auto/https%3A%2F%2F1424805687-files.gitbook.io%2F~%2Ffiles%2Fv0%2Fb%2Fgitbook-legacy-files%2Fo%2Fspaces%252F-LNfdtt4GjEZFGIkSBlE%252Favatar.png%3Fgeneration%3D1538330785479526%26alt%3Dmedia"
-
 nav = dbc.Nav(
     [
         dbc.NavItem(
@@ -41,7 +39,9 @@ navbar = dbc.Navbar(
                 # Use row and col to control vertical alignment of logo / brand
                 dbc.Row(
                     [
-                        dbc.Col(html.Img(src=LOGO, height="30px")),
+                        dbc.Col(
+                            html.Img(src="assets/apple-touch-icon.png", height="35px")
+                        ),
                         dbc.Col(
                             dbc.NavbarBrand(
                                 "Intelligent Charge Scheduler",
@@ -53,7 +53,7 @@ navbar = dbc.Navbar(
                     align="center",
                     className="g-0",
                 ),
-                href="#",
+                href="/",
                 style={"textDecoration": "none"},
             ),
             dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
@@ -101,7 +101,7 @@ def forecast_load(n):
         vehicle["summary"],
         f"Charge Limit: {vehicle['charge_state']['charge_limit_soc']}%",
         f"Charge Current: {vehicle['charge_state']['charge_current_request']}A/{vehicle['charge_state']['charge_current_request_max']}A",
-        f"Charger State: {vehicle['charge_state']['charging_state']}",
+        f"Charge State: {vehicle['charge_state']['charging_state']}",
     )
 
 
@@ -111,7 +111,7 @@ dashboard = dbc.Container(
             id="graph_wrapper",
             children=[
                 html.H5(
-                    "Optimal Tesla Charging using Load Forecast",
+                    "Optimal Tesla Charging Using Load Forecast",
                     className="mt-5",
                     style={"textAlign": "center"},
                 ),
@@ -174,7 +174,7 @@ footer = dbc.Navbar(
         ],
     ),
     color="light",
-    className="fixed-bottom",
+    class_name="fixed-bottom",
 )
 
 counter = dcc.Interval(
