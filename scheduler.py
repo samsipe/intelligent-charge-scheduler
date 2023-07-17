@@ -208,7 +208,7 @@ def plot_grid_status(
         line_color="red",
         annotation_text="Time Now",
         line_width=1,
-        annotation_position="top right",
+        annotation_position="top left",
     )
     fig.add_hrect(
         y0=current_load,
@@ -226,6 +226,21 @@ def plot_grid_status(
         line_width=1,
         annotation_position="top left",
     )
+    if vehicle and vehicle["charge_state"]["scheduled_departure_time"]:
+        fig.add_vrect(
+            x0=datetime.datetime.fromtimestamp(
+                vehicle["charge_state"]["scheduled_departure_time"],
+                pytz.timezone(time_zone),
+            ),
+            x1=datetime.datetime.fromtimestamp(
+                vehicle["charge_state"]["scheduled_departure_time"],
+                pytz.timezone(time_zone),
+            ),
+            line_color="orange",
+            line_width=1,
+            annotation_text="Depart",
+            annotation_position="bottom left",
+        )
     if (
         vehicle
         and vehicle["charge_state"]["scheduled_charging_start_time"]
@@ -236,14 +251,11 @@ def plot_grid_status(
                 vehicle["charge_state"]["scheduled_charging_start_time"],
                 pytz.timezone(time_zone),
             ),
-            x1=datetime.datetime.fromtimestamp(
-                vehicle["charge_state"]["scheduled_departure_time"],
-                pytz.timezone(time_zone),
-            ),
+            x1=off_peak_hours_end_time,
             fillcolor="green",
             opacity=0.2,
             line_width=0,
-            annotation_text="Scheduled Charge",
+            annotation_text="Charge",
             annotation_position="bottom left",
         )
     if (
