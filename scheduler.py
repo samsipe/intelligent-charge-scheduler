@@ -226,7 +226,14 @@ def plot_grid_status(
         line_width=1,
         annotation_position="top left",
     )
-    if vehicle and vehicle["charge_state"]["scheduled_departure_time"]:
+    if (
+        vehicle
+        and datetime.datetime.fromtimestamp(
+            vehicle["charge_state"]["scheduled_departure_time"],
+            pytz.timezone(time_zone),
+        )
+        > now
+    ):
         fig.add_vrect(
             x0=datetime.datetime.fromtimestamp(
                 vehicle["charge_state"]["scheduled_departure_time"],
@@ -341,9 +348,8 @@ def get_calendar_events(credentials, hours=24, max_results=10, verbose=False):
             if not events:
                 print("No upcoming events found.")
             else:
-                print("Events in the next 24 hours with a location:")
                 for event in events:
-                    if "location" in event:
+                    if "location" in event and "http" not in event["location"]:
                         start = event["start"].get(
                             "dateTime", event["start"].get("date")
                         )
@@ -683,23 +689,22 @@ def calc_schedule_limits(
     ]
 
     # Calculate charge limit soc
-    longest_distance = 0
+    longest_distance = -1
     valid_events = []
     for event in events:
-        if event["location"] and "http" not in event["location"]:
-            distance, time = get_directions(
+        if "location" in event and "http" not in event["location"]:
+            event["distance"], event["time"] = get_directions(
                 os.environ.get("TESLA_ADDRESS"), event["location"]
             )
-            event["distance"] = distance
-            event["time"] = time
-            if distance > longest_distance:
-                longest_distance = distance
-                longest_time = time
-                farthest_event = event
-            valid_events.append(event)
+            # only consider events that are at least 15 minutes away
+            if event["time"] > 15:
+                valid_events.append(event)
+                if event["distance"] > longest_distance:
+                    longest_distance = event["distance"]
+                    farthest_event = event
 
     # drives longer than 120 miles and longer than 3 hours
-    if longest_distance >= 120 or longest_time >= 180:
+    if longest_distance >= 120:
         # higher than this will charge now at full rate
         vehicle["charge_state"]["charge_limit_soc"] = 94
     elif longest_distance > 0:
