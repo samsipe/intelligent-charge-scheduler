@@ -3,7 +3,7 @@ import json
 from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 
-from scheduler import get_grid_status, plot_grid_status, google_cloud_storage_download
+from scheduler import get_grid_status, plot_grid_status, google_cloud_storage_download, __version__
 
 app = Dash(
     __name__,
@@ -160,6 +160,7 @@ footer = dbc.Navbar(
     dbc.Container(
         [
             html.Div(f"© {datetime.datetime.now().year} Intelligent Charge Scheduler"),
+            html.Div(f"v{__version__}", style={"color": "#d3d3d3"}),
             html.Div(
                 [
                     "Made with 🔋 by ",

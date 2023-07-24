@@ -5,7 +5,7 @@ the vehicle charge accordingly.
 
 Author: Sam Sipe
 """
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 from dotenv import load_dotenv
 import argparse
@@ -169,6 +169,24 @@ def plot_grid_status(
     off_peak_hours_end_time = df["interval_start"][
         filtered_df[filtered_df >= datetime.timedelta(0)].idxmin()
     ]
+    scheduled_departure_time = None
+    scheduled_charging_start_time = None
+    datetime_full_charge = None
+    if vehicle is not None:
+        if vehicle["charge_state"]["scheduled_departure_time"]:
+            scheduled_departure_time = datetime.datetime.fromtimestamp(
+                vehicle["charge_state"]["scheduled_departure_time"],
+                pytz.timezone(time_zone),
+            )
+        if vehicle["charge_state"]["scheduled_charging_start_time"]:
+            scheduled_charging_start_time = datetime.datetime.fromtimestamp(
+                vehicle["charge_state"]["scheduled_charging_start_time"],
+                pytz.timezone(time_zone),
+            )
+        if vehicle["charge_state"]["time_to_full_charge"] > 0:
+            datetime_full_charge = now + datetime.timedelta(
+                hours=vehicle["charge_state"]["time_to_full_charge"]
+            )
 
     fig = px.line(
         df,
@@ -227,37 +245,22 @@ def plot_grid_status(
         annotation_position="top left",
     )
     if (
-        vehicle
-        and datetime.datetime.fromtimestamp(
-            vehicle["charge_state"]["scheduled_departure_time"],
-            pytz.timezone(time_zone),
-        )
-        > now
+        scheduled_departure_time
+        and vehicle["charge_state"]["charging_state"] != "Disconnected"
     ):
         fig.add_vrect(
-            x0=datetime.datetime.fromtimestamp(
-                vehicle["charge_state"]["scheduled_departure_time"],
-                pytz.timezone(time_zone),
-            ),
-            x1=datetime.datetime.fromtimestamp(
-                vehicle["charge_state"]["scheduled_departure_time"],
-                pytz.timezone(time_zone),
-            ),
+            x0=scheduled_departure_time,
+            x1=scheduled_departure_time,
             line_color="orange",
             line_width=1,
             annotation_text="Depart",
             annotation_position="bottom left",
         )
-    if (
-        vehicle
-        and vehicle["charge_state"]["scheduled_charging_start_time"]
-        and vehicle["charge_state"]["charging_state"] not in ["Complete", "Charging"]
-    ):
+    if scheduled_charging_start_time and vehicle["charge_state"][
+        "charging_state"
+    ] not in ["Complete", "Charging"]:
         fig.add_vrect(
-            x0=datetime.datetime.fromtimestamp(
-                vehicle["charge_state"]["scheduled_charging_start_time"],
-                pytz.timezone(time_zone),
-            ),
+            x0=scheduled_charging_start_time,
             x1=off_peak_hours_end_time,
             fillcolor="green",
             opacity=0.2,
@@ -265,15 +268,10 @@ def plot_grid_status(
             annotation_text="Charge",
             annotation_position="bottom left",
         )
-    if (
-        vehicle
-        and vehicle["charge_state"]["time_to_full_charge"] > 0
-        and vehicle["charge_state"]["charging_state"] == "Charging"
-    ):
+    if datetime_full_charge and vehicle["charge_state"]["charging_state"] == "Charging":
         fig.add_vrect(
             x0=now,
-            x1=now
-            + datetime.timedelta(hours=vehicle["charge_state"]["time_to_full_charge"]),
+            x1=datetime_full_charge,
             fillcolor="green",
             opacity=0.2,
             line_width=0,
@@ -711,7 +709,8 @@ def calc_schedule_limits(
         vehicle["charge_state"]["charge_limit_soc"] = int(
             longest_distance * (95 - 75) / 120 + 75
         )
-    # do not change charge level if no calendar events exist
+    else:
+        vehicle["charge_state"]["charge_limit_soc"] = 75
 
     # Calculate scheduled departure time
     if len(valid_events) > 0:
@@ -762,7 +761,10 @@ def calc_schedule_limits(
         if (
             now
             + datetime.timedelta(hours=vehicle["charge_state"]["time_to_full_charge"])
-            > departure_time
+            > datetime.datetime.fromtimestamp(
+                vehicle["charge_state"]["scheduled_departure_time"],
+                pytz.timezone(time_zone),
+            )
             and vehicle["charge_state"]["charge_current_request"]
             < vehicle["charge_state"]["charge_current_request_max"]
         ):
@@ -770,18 +772,18 @@ def calc_schedule_limits(
                 vehicle["charge_state"]["charge_current_request"] + 1
             )
             if verbose:
-                print("Decreased charge current request")
+                print("Increased charge current request")
         elif (
             now
             + datetime.timedelta(hours=vehicle["charge_state"]["time_to_full_charge"])
             < off_peak_hours_end_time
-            and vehicle["charge_state"]["charge_current_request"] > 3
+            and vehicle["charge_state"]["charge_current_request"] > 5
         ):
             vehicle["charge_state"]["charge_current_request"] = int(
                 vehicle["charge_state"]["charge_current_request"] - 1
             )
             if verbose:
-                print("Increased charge current request")
+                print("Decreased charge current request")
         else:
             if verbose:
                 print("No change to charge current request")
