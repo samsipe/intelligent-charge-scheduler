@@ -1,6 +1,7 @@
 python-dotenv
 pyarrow
 schedule
+dictdiffer
 gridstatusio
 teslapy
 google-api-python-client

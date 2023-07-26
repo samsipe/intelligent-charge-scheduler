@@ -5,23 +5,26 @@ the vehicle charge accordingly.
 
 Author: Sam Sipe
 """
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 
 from dotenv import load_dotenv
 import argparse
 import schedule
+import dictdiffer
 import pytz
 import time
 import json
 import hashlib
 import base64
 import datetime
+import sys
 import os
 import pandas as pd
 from gridstatusio import GridStatusClient
 import teslapy
 import googlemaps
 
+from requests.exceptions import ConnectionError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -476,6 +479,9 @@ def get_vehicle_status(tesla, verbose=False):
     """
     try:
         vehicles = tesla.vehicle_list()
+    except ConnectionError as error:
+        print("Please check your internet connection")
+        sys.exit(1)
     except teslapy.VehicleError as e:
         print(e)
         return None, None
@@ -484,6 +490,9 @@ def get_vehicle_status(tesla, verbose=False):
         last_seen = vehicle.last_seen()
     except ValueError:
         last_seen = "just now"
+    except teslapy.VehicleError as e:
+        print(e)
+        return None, None
 
     summary = f"{vehicle['display_name']} is {vehicle['state']} and was last seen {last_seen} with a {vehicle['charge_state']['battery_level']}% charge"
     if verbose:
@@ -494,6 +503,34 @@ def get_vehicle_status(tesla, verbose=False):
         vehicle_file.write(json.dumps(vehicle))
 
     return vehicle, summary
+
+
+def check_diff(vehicle, verbose=False):
+    """
+    This function checks if there is a difference between the current vehicle status and the previous one.
+
+    Parameters:
+    - vehicle (dict): A dictionary containing the current vehicle status.
+    - verbose (bool): Whether to print verbose output. Defaults to False.
+
+    Returns:
+    - bool: True if there is a difference between the current vehicle status and the previous one, False otherwise.
+    """
+    try:
+        with open("vehicle.json", "r") as vehicle_file:
+            prev_vehicle = json.loads(vehicle_file.read())
+    except FileNotFoundError:
+        return True
+
+    diff = list(dictdiffer.diff(prev_vehicle, vehicle))
+    if len(diff) > 0:
+        if verbose:
+            print(f"Charge optimizer made {len(diff)} change(s)")
+        return True
+    else:
+        if verbose:
+            print(f"Charge optimizer made no change")
+        return False
 
 
 def wake_up(vehicle, verbose=False):
@@ -518,7 +555,7 @@ def wake_up(vehicle, verbose=False):
         print(e)
 
 
-def set_charge_current(df, vehicle, verbose=False):
+def set_charge_current(vehicle, verbose=False):
     """
     This function sets the charging current of a Tesla vehicle.
 
@@ -842,7 +879,7 @@ def optimize_vehicle_charge(df, tesla, vehicle, events, verbose=False):
             f"{vehicle['display_name']} is plugged in, but there is no power. No action taken."
         )
     elif vehicle["charge_state"]["charge_limit_soc"] >= 95:
-        if vehicle["charge_state"]["charging_state"] != "Charging":
+        if vehicle["charge_state"]["charging_state"] not in ["Complete", "Charging"]:
             print(
                 f"{vehicle['display_name']} is plugged in and set to above 95%. Starting charge at full power."
             )
@@ -850,11 +887,12 @@ def optimize_vehicle_charge(df, tesla, vehicle, events, verbose=False):
                 "charge_current_request_max"
             ]
             wake_up(vehicle, verbose)
-            set_charge_current(df, vehicle, verbose)
+            set_charge_current(vehicle, verbose)
             set_start_charging(vehicle, verbose)
             modified = True
         elif (
-            vehicle["charge_state"]["charge_current_request"]
+            vehicle["charge_state"]["charging_state"] == "Charging"
+            and vehicle["charge_state"]["charge_current_request"]
             != vehicle["charge_state"]["charge_current_request_max"]
         ):
             print(
@@ -864,7 +902,7 @@ def optimize_vehicle_charge(df, tesla, vehicle, events, verbose=False):
                 "charge_current_request_max"
             ]
             wake_up(vehicle, verbose)
-            set_charge_current(df, vehicle, verbose)
+            set_charge_current(vehicle, verbose)
             modified = True
         else:
             print(
@@ -879,21 +917,22 @@ def optimize_vehicle_charge(df, tesla, vehicle, events, verbose=False):
                 "charge_current_request_max"
             ]
             wake_up(vehicle)
-            set_charge_current(df, vehicle, verbose)
+            set_charge_current(vehicle, verbose)
             set_start_charging(vehicle, verbose)
             modified = True
         elif (
-            vehicle["charge_state"]["charge_current_request"]
+            vehicle["charge_state"]["charging_state"] == "Charging"
+            and vehicle["charge_state"]["charge_current_request"]
             != vehicle["charge_state"]["charge_current_request_max"]
         ):
             print(
-                f"{vehicle['display_name']} is plugged in and below 20%. Increasing charge current."
+                f"{vehicle['display_name']} is charging and below 20%. Increasing charge current."
             )
             vehicle["charge_state"]["charge_current_request"] = vehicle["charge_state"][
                 "charge_current_request_max"
             ]
             wake_up(vehicle, verbose)
-            set_charge_current(df, vehicle, verbose)
+            set_charge_current(vehicle, verbose)
             modified = True
         else:
             print(
@@ -920,11 +959,12 @@ def optimize_vehicle_charge(df, tesla, vehicle, events, verbose=False):
     ):
         print(f"{vehicle['display_name']} is plugged in. Optimizing charge schedule.")
         vehicle = calc_schedule_limits(df, vehicle, events, verbose)
-        wake_up(vehicle, verbose)
-        set_charge_current(df, vehicle, verbose)
-        set_charge_limit(vehicle, verbose)
-        set_schedule(vehicle, verbose)
-        modified = True
+        if check_diff(vehicle, verbose):
+            wake_up(vehicle, verbose)
+            set_charge_current(vehicle, verbose)
+            set_charge_limit(vehicle, verbose)
+            set_schedule(vehicle, verbose)
+            modified = True
     else:
         print(
             f"{vehicle['display_name']} is plugged in but scheduled charging is not enabled. Enable it in the app to optimize charging at this location."
