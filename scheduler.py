@@ -747,9 +747,14 @@ def calc_schedule_limits(
         ]["interval_start_utc"]
         - now
     )
-    off_peak_hours_end_time = df["interval_start_utc"][
-        filtered_df[filtered_df >= datetime.timedelta(0)].idxmin()
-    ].astimezone(pytz.timezone(time_zone))
+    try:
+        off_peak_hours_end_time = df["interval_start_utc"][
+            filtered_df[filtered_df >= datetime.timedelta(0)].idxmin()
+        ].astimezone(pytz.timezone(time_zone))
+    except ValueError:
+        off_peak_hours_end_time = df.loc[df["load_forecast"].idxmin()][
+            "interval_start_utc"
+        ].astimezone(pytz.timezone(time_zone))
     vehicle["charge_state"]["off_peak_hours_end_time"] = int(
         off_peak_hours_end_time.hour * 60
         + off_peak_hours_end_time.minute
@@ -758,13 +763,18 @@ def calc_schedule_limits(
 
     # Calculate charge current request
     if vehicle["charge_state"]["charging_state"] == "Charging":
-        if (
-            now
-            + datetime.timedelta(hours=vehicle["charge_state"]["time_to_full_charge"])
-            > datetime.datetime.fromtimestamp(
+        time_at_full_charge = now.astimezone(
+            pytz.timezone(time_zone)
+        ) + datetime.timedelta(hours=vehicle["charge_state"]["time_to_full_charge"])
+        first_time = min(
+            datetime.datetime.fromtimestamp(
                 vehicle["charge_state"]["scheduled_departure_time"],
                 pytz.timezone(time_zone),
-            )
+            ),
+            off_peak_hours_end_time,
+        )
+        if (
+            time_at_full_charge > first_time + datetime.timedelta(minutes=30)
             and vehicle["charge_state"]["charge_current_request"]
             < vehicle["charge_state"]["charge_current_request_max"]
         ):
@@ -774,9 +784,7 @@ def calc_schedule_limits(
             if verbose:
                 print("Increased charge current request")
         elif (
-            now
-            + datetime.timedelta(hours=vehicle["charge_state"]["time_to_full_charge"])
-            < off_peak_hours_end_time
+            time_at_full_charge < first_time - datetime.timedelta(minutes=30)
             and vehicle["charge_state"]["charge_current_request"] > 5
         ):
             vehicle["charge_state"]["charge_current_request"] = int(
