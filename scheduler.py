@@ -878,7 +878,10 @@ def optimize_vehicle_charge(df, tesla, vehicle, events, verbose=False):
         print(
             f"{vehicle['display_name']} is plugged in, but there is no power. No action taken."
         )
-    elif vehicle["charge_state"]["charge_limit_soc"] >= 95:
+    elif (
+        vehicle["charge_state"]["charge_limit_soc"] >= 95
+        and vehicle["charge_state"]["scheduled_charging_mode"] == "DepartBy"
+    ):
         if vehicle["charge_state"]["charging_state"] not in ["Complete", "Charging"]:
             print(
                 f"{vehicle['display_name']} is plugged in and set to above 95%. Starting charge at full power."
