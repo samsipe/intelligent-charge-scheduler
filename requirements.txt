@@ -3,7 +3,7 @@ pyarrow
 schedule
 dictdiffer
 gridstatusio
-teslapy
+git+https://github.com/tdorssers/TeslaPy.git
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
