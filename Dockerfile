@@ -4,7 +4,8 @@ ENV PYTHONUNBUFFERED True
 WORKDIR /app
 
 ADD requirements.txt .
-RUN python3 -m pip install --upgrade pip \
+RUN apt-get update && apt-get install -y git \
+    && python3 -m pip install --upgrade pip \
     && pip3 --disable-pip-version-check --no-cache-dir install -r requirements.txt \
     && pip install --no-cache-dir gunicorn
 RUN groupadd -r app && useradd -r -g app app && chown -R app:app /app
